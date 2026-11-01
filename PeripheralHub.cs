@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -10,11 +10,15 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
 
+#if ENGLISH
+[assembly: AssemblyTitle("Peripheral AUTO Control Center - English")]
+#else
 [assembly: AssemblyTitle("外设AUTO控制中心")]
-[assembly: AssemblyDescription("外设管理软件与 Windows 声音设置快捷入口")]
-[assembly: AssemblyVersion("2.0.0.0")]
+#endif
+[assembly: AssemblyDescription("Peripheral companion apps and Windows audio settings launcher")]
+[assembly: AssemblyVersion("2.1.0.0")]
 [assembly: AssemblyCompany("Nonori")]
-[assembly: AssemblyProduct("外设AUTO控制中心")]
+[assembly: AssemblyProduct("Peripheral AUTO Control Center | 外设AUTO控制中心")]
 [assembly: AssemblyCopyright("Copyright © 2026 Nonori")]
 
 internal sealed class Entry
@@ -71,7 +75,7 @@ internal static class Catalog
         Discovery.Trace("store apps read: "+list.Count);
         foreach (Entry e in list)
         {
-            if (e.IsSetting) continue;
+            if (e.IsSetting) { Ui.Localize(e); continue; }
             if (e.Shortcuts != null)
                 foreach (string name in e.Shortcuts)
                 {
@@ -88,6 +92,7 @@ internal static class Catalog
             if (e.Id=="razer" && String.IsNullOrEmpty(e.Arguments)) e.Arguments="--url-params=apps=synapse";
             if (e.Id=="steelseries" && String.IsNullOrEmpty(e.Arguments)) e.Arguments="-dataPath=\"C:\\ProgramData\\SteelSeries\\GG\" -dbEnv=production";
             e.Available = !String.IsNullOrEmpty(e.AppId) ? installedApps.Contains(e.AppId) : !String.IsNullOrEmpty(e.Target) && File.Exists(e.Target);
+            Ui.Localize(e);
             if (e.Image==null && !String.IsNullOrEmpty(e.AppId)) e.Image = ShellImages.Load("::{4234d49b-0245-4df3-b780-3893943456e1}\\"+e.AppId);
             if (e.Image==null && !String.IsNullOrEmpty(e.IconPath)) e.Image=ShellImages.LoadFile(e.IconPath);
             if (e.Image==null && !String.IsNullOrEmpty(e.Target)) e.Image=ShellImages.LoadFile(e.Target);
@@ -245,7 +250,7 @@ internal static class Art
     public static void Stroke(Graphics g,RectangleF r,float radius,Color color)
     { using(GraphicsPath p=Round(r,radius)) using(Pen pen=new Pen(color)) g.DrawPath(pen,p); }
     public static void Label(Graphics g,string text,float x,float y,float size,Color color,bool bold)
-    { using(Font font=new Font("Microsoft YaHei UI",size,bold?FontStyle.Bold:FontStyle.Regular,GraphicsUnit.Pixel)) using(SolidBrush brush=new SolidBrush(color)) g.DrawString(text,font,brush,x,y,StringFormat.GenericTypographic); }
+    { using(Font font=new Font(Ui.FontFamily,size,bold?FontStyle.Bold:FontStyle.Regular,GraphicsUnit.Pixel)) using(SolidBrush brush=new SolidBrush(color)) g.DrawString(Ui.Text(text),font,brush,x,y,StringFormat.GenericTypographic); }
     public static void Glyph(Graphics g,string type,RectangleF r,Color color)
     {
         GraphicsState state=g.Save();g.TranslateTransform(r.X,r.Y);g.ScaleTransform(r.Width/32,r.Height/32);
@@ -292,10 +297,10 @@ internal sealed class CardButton : Button
         if(Entry.Image!=null){g.InterpolationMode=InterpolationMode.HighQualityBicubic;g.DrawImage(Entry.Image,new RectangleF(26,26,38,38));}
         else Art.Glyph(g,Entry.Glyph,new RectangleF(30,30,30,30),Entry.Accent);
         Art.Label(g,Entry.Badge,84,22,10,Entry.Accent,true);
-        using(Font font=new Font("Microsoft YaHei UI",16,FontStyle.Bold,GraphicsUnit.Pixel))
+        using(Font font=new Font(Ui.FontFamily,16,FontStyle.Bold,GraphicsUnit.Pixel))
         using(SolidBrush b=new SolidBrush(Art.Text))
-        using(StringFormat format=new StringFormat { Trimming=StringTrimming.EllipsisCharacter, FormatFlags=StringFormatFlags.NoWrap })
-            g.DrawString(Entry.Name,font,b,new RectangleF(83,41,w-99,25),format);
+        using(StringFormat format=new StringFormat { Trimming=StringTrimming.EllipsisCharacter, FormatFlags=Ui.English?StringFormatFlags.LineLimit:StringFormatFlags.NoWrap })
+            g.DrawString(Entry.Name,font,b,new RectangleF(83,41,w-99,Ui.English?43:25),format);
         Art.Label(g,Entry.Detail,18,90,12,Art.Muted,false);
         using(SolidBrush dot=new SolidBrush(Entry.Available?Color.FromArgb(107,207,158):Color.FromArgb(104,112,126)))g.FillEllipse(dot,20,h-29,5,5);
         Art.Label(g,Entry.Available?(Entry.IsSetting?"系统设置":"已安装"):"未检测到",32,h-35,10,Art.Muted,false);
@@ -312,7 +317,7 @@ internal sealed class NavButton : Button
     bool hover;
     public NavButton(string caption,string icon,float scale)
     {
-        Caption=caption;IconType=icon;ScaleFactor=scale;Text=caption;Cursor=Cursors.Hand;
+        Caption=caption;IconType=icon;ScaleFactor=scale;Text=Ui.Text(caption);Cursor=Cursors.Hand;
         SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer,true);
         MouseEnter+=delegate{hover=true;Invalidate();};MouseLeave+=delegate{hover=false;Invalidate();};
         GotFocus+=delegate{Invalidate();};LostFocus+=delegate{Invalidate();};
@@ -339,7 +344,7 @@ internal sealed class HubForm : Form
     readonly Panel viewport;
     readonly List<NavButton> navs=new List<NavButton>();
     readonly Action<ProcessStartInfo> dispatch;
-    const string DefaultNotice="启动自动扫描 · 每 60 秒检查新软件";
+    static readonly string DefaultNotice=Ui.Text("启动自动扫描 · 每 60 秒检查新软件");
     string category="all", notice=DefaultNotice;
     readonly Timer noticeTimer=new Timer();
     readonly Timer scanTimer=new Timer();
@@ -352,17 +357,17 @@ internal sealed class HubForm : Form
         using(Graphics g=CreateGraphics())scale=g.DpiX/96f;
         AutoScaleMode=AutoScaleMode.None;
         BackColor=Art.Background;ForeColor=Art.Text;
-        Text="外设AUTO控制中心";StartPosition=FormStartPosition.CenterScreen;
+        Text=Ui.Text("外设AUTO控制中心");StartPosition=FormStartPosition.CenterScreen;
         ClientSize=new Size(S(1120),Math.Min(S(820),Screen.PrimaryScreen.WorkingArea.Height-S(60)));
         MinimumSize=new Size(S(1020),S(650));
-        Font=new Font("Microsoft YaHei UI",10);
+        Font=new Font(Ui.FontFamily,10);
         Icon=Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         DoubleBuffered=true;
-        search=new TextBox { BorderStyle=BorderStyle.None, BackColor=Color.FromArgb(23,31,44), ForeColor=Art.Text, Font=new Font("Microsoft YaHei UI",10.5f), AccessibleName="搜索软件或设置" };
+        search=new TextBox { BorderStyle=BorderStyle.None, BackColor=Color.FromArgb(23,31,44), ForeColor=Art.Text, Font=new Font(Ui.FontFamily,10.5f), AccessibleName=Ui.Text("搜索软件或设置") };
         search.TextChanged+=delegate{RenderCards();Invalidate();};
-        search.HandleCreated+=delegate{SendMessage(search.Handle,0x1501,new IntPtr(1),"搜索品牌、软件或设置…");};
+        search.HandleCreated+=delegate{SendMessage(search.Handle,0x1501,new IntPtr(1),Ui.Text("搜索品牌、软件或设置…"));};
         Controls.Add(search);
-        viewport=new Panel { BackColor=Art.Background, AutoScroll=true, AccessibleName="快捷入口列表" };
+        viewport=new Panel { BackColor=Art.Background, AutoScroll=true, AccessibleName=Ui.Text("快捷入口列表") };
         Controls.Add(viewport);
         string[] captions={"全部入口","外设驱动","Windows 声音","更多工具"};
         string[] icons={"grid","gamepad","headphone","app"};
@@ -379,11 +384,11 @@ internal sealed class HubForm : Form
         addSoftware=new NavButton("添加软件","app",scale);
         addSoftware.Click+=delegate
         {
-            using(OpenFileDialog dialog=new OpenFileDialog {Title="选择外设管理软件或快捷方式",Filter="应用或快捷方式 (*.exe;*.lnk)|*.exe;*.lnk",CheckFileExists=true})
+            using(OpenFileDialog dialog=new OpenFileDialog {Title=Ui.Text("选择外设管理软件或快捷方式"),Filter=Ui.Text("应用或快捷方式 (*.exe;*.lnk)|*.exe;*.lnk"),CheckFileExists=true})
             {
                 if(dialog.ShowDialog(this)!=DialogResult.OK)return;
                 try{Discovery.AddManual(Discovery.FromFile(dialog.FileName));Scan(true);}
-                catch(Exception ex){MessageBox.Show(this,ex.Message,"添加失败",MessageBoxButtons.OK,MessageBoxIcon.Information);}
+                catch(Exception ex){MessageBox.Show(this,ex.Message,Ui.Text("添加失败"),MessageBoxButtons.OK,MessageBoxIcon.Information);}
             }
         };
         Controls.Add(addSoftware);
@@ -472,9 +477,9 @@ internal sealed class HubForm : Form
     }
     void Open(Entry entry)
     {
-        if(!entry.Available){MessageBox.Show(this,"没有找到此应用。请确认它仍已安装，然后点击左下角“刷新应用”。",entry.Name,MessageBoxButtons.OK,MessageBoxIcon.Information);return;}
+        if(!entry.Available){MessageBox.Show(this,Ui.Text("没有找到此应用。请确认它仍已安装，然后点击左下角“刷新应用”。"),entry.Name,MessageBoxButtons.OK,MessageBoxIcon.Information);return;}
         try {dispatch(entry.Command());notice="已发送打开请求："+entry.Name;noticeTimer.Start();Invalidate();}
-        catch(Exception ex){MessageBox.Show(this,"无法打开“"+entry.Name+"”。\n\n"+ex.Message,"打开失败",MessageBoxButtons.OK,MessageBoxIcon.Warning);}
+        catch(Exception ex){MessageBox.Show(this,Ui.Text("无法打开“"+entry.Name+"”。\n\n"+ex.Message),Ui.Text("打开失败"),MessageBoxButtons.OK,MessageBoxIcon.Warning);}
     }
     protected override void OnPaint(PaintEventArgs e)
     {
@@ -529,6 +534,14 @@ internal static class Program
             using(HubForm form=new HubForm(commands.Add))
             {
                 form.Show();Application.DoEvents();
+                if(Ui.English)
+                {
+                    if(form.Text!="Peripheral AUTO Control Center")throw new Exception("English window title missing.");
+                    foreach(Entry entry in form.Entries)
+                        if(System.Text.RegularExpressions.Regex.IsMatch(entry.Name+entry.Detail+entry.Badge,@"\p{IsCJKUnifiedIdeographs}"))throw new Exception("Untranslated catalog entry: "+entry.Name);
+                    if(form.Controls.OfType<TextBox>().Single().AccessibleName!="Search apps or settings")throw new Exception("English search accessibility label missing.");
+                    if(!form.Controls.OfType<NavButton>().Any(x=>x.Text=="Add App"))throw new Exception("English navigation missing.");
+                }
                 if(form.Entries.Count<16)throw new Exception("Previously installed applications were lost.");
                 foreach(CardButton card in form.Cards)
                 {
@@ -543,7 +556,7 @@ internal static class Program
                 }
                 if(commands.Single(x=>x.FileName=="ms-settings:sound-defaultinputproperties")==null)throw new Exception("Microphone route missing.");
                 if(commands.Single(x=>x.FileName=="ms-settings:sound-defaultoutputproperties")==null)throw new Exception("Headphone route missing.");
-                form.Filter("雷蛇","all");if(!form.Cards.Any(x=>x.Entry.Id=="razer"))throw new Exception("Search failed.");
+                form.Filter(Ui.English?"Razer":"雷蛇","all");if(!form.Cards.Any(x=>x.Entry.Id=="razer"))throw new Exception("Search failed.");
                 form.Filter("","sound");if(form.Cards.Count!=5)throw new Exception("Sound filter failed.");
                 form.Filter("没有这个品牌","all");if(form.Cards.Count!=0)throw new Exception("Empty search failed.");
                 int beforeRefresh=form.Entries.Count;

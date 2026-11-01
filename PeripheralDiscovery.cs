@@ -194,7 +194,7 @@ internal static class Discovery
     }
     public static void AddManual(Candidate candidate)
     {
-        if(!Usable(candidate.Target))throw new ArgumentException("请选择可运行的管理软件 EXE，或指向该软件的快捷方式。");
+        if(!Usable(candidate.Target))throw new ArgumentException(Ui.Text("请选择可运行的管理软件 EXE，或指向该软件的快捷方式。"));
         List<Candidate> list=ReadManual();
         if(!list.Any(x=>String.Equals(Key(x),Key(candidate),StringComparison.OrdinalIgnoreCase)))list.Add(candidate);
         XElement root=new XElement("apps",list.Select(x=>new XElement("app",new XAttribute("name",x.Name??""),new XAttribute("target",x.Target),new XAttribute("arguments",x.Arguments??""),new XAttribute("icon",x.Icon??""),new XAttribute("workingDirectory",x.WorkingDirectory??""))));
