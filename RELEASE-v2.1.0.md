@@ -1,4 +1,4 @@
-# Peripheral AUTO Control Center | 外设AUTO控制中心 v2.1.0
+﻿# Peripheral AUTO Control Center | 外设AUTO控制中心 v2.1.0
 
 **By Nonori · English & 简体中文**
 
@@ -24,7 +24,7 @@ Download **one of the EXEs** for normal use. No installer required. Intended for
 - Full English interface: navigation, card descriptions, search prompts, and application messages.
 - Separate Chinese and English downloads with the same functionality.
 - Longer English app titles wrap to fit the cards.
-- A discreet calligraphic **designed by nonori** signature beneath the main headline in both editions.
+- A small, readable gold calligraphic **designed by nonori** signature beneath the main headline in both editions.
 - Expanded English overview, dedicated Chinese guide, quick-start steps, download choices, FAQ, and community feedback guidance.
 - Updated source and build script that can produce both editions.
 
