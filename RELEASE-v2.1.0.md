@@ -24,10 +24,11 @@ Download **one of the EXEs** for normal use. No installer required. Intended for
 - Full English interface: navigation, card descriptions, search prompts, and application messages.
 - Separate Chinese and English downloads with the same functionality.
 - Longer English app titles wrap to fit the cards.
+- A discreet calligraphic **designed by nonori** signature beneath the main headline in both editions.
 - Expanded English overview, dedicated Chinese guide, quick-start steps, download choices, FAQ, and community feedback guidance.
 - Updated source and build script that can produce both editions.
 
-新增英文版、清晰的语言下载入口和更完整的中英文说明。
+新增英文版、清晰的语言下载入口和更完整的中英文说明，并在标语下方加入低调的花体签名。
 
 ## Quick start | 快速上手
 

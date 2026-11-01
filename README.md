@@ -127,6 +127,7 @@ Outputs are written to `dist/`. The script uses the Windows .NET Framework C# co
 | `PeripheralDiscovery.cs` | App discovery, filtering, deduplication, and custom entries |
 | `UiLocalization.cs` | English translations and language-specific labels |
 | `PeripheralHub.manifest` / `PeripheralHub.ico` | Windows manifest and application icon |
+| `Nonori.Signature.png` | Embedded calligraphic signature, consistent across PCs |
 | `build.ps1` | Build one or both editions |
 
 ## Validation

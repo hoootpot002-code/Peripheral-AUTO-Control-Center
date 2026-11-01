@@ -4,6 +4,7 @@
 
 - Added a full English interface alongside the Chinese edition.
 - Adjusted long English card titles to wrap cleanly.
+- Added a small calligraphic "designed by nonori" signature beneath the headline in both editions.
 - Added clear language-specific downloads, bilingual quick-start information, FAQs, and a dedicated Chinese guide.
 - Updated the build script to build either edition or both from the same source.
 

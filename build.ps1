@@ -19,6 +19,7 @@ foreach ($edition in $editions) {
         '/reference:System.Core.dll', '/reference:System.Xml.Linq.dll', '/reference:Microsoft.CSharp.dll',
         ('/win32manifest:' + (Join-Path $PSScriptRoot 'PeripheralHub.manifest')),
         ('/win32icon:' + (Join-Path $PSScriptRoot 'PeripheralHub.ico')),
+        ('/resource:' + (Join-Path $PSScriptRoot 'Nonori.Signature.png') + ',Nonori.Signature.png'),
         ('/out:' + (Join-Path $destination $fileName)),
         (Join-Path $PSScriptRoot 'PeripheralHub.cs'),
         (Join-Path $PSScriptRoot 'PeripheralDiscovery.cs'),

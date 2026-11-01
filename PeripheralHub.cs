@@ -239,6 +239,27 @@ internal static class ShellImages
 
 internal static class Art
 {
+    static readonly Bitmap SignatureImage=LoadSignature();
+    static Bitmap LoadSignature()
+    {
+        using(Stream stream=Assembly.GetExecutingAssembly().GetManifestResourceStream("Nonori.Signature.png"))
+        {
+            if(stream==null)return null;
+            using(Image image=Image.FromStream(stream))return new Bitmap(image);
+        }
+    }
+    static readonly string SignatureFont=new string[] {"Edwardian Script ITC","Kunstler Script","French Script MT","Vivaldi","Monotype Corsiva","Segoe Script"}.FirstOrDefault(name=>FontFamily.Families.Any(family=>family.Name.Equals(name,StringComparison.OrdinalIgnoreCase)))??"Segoe UI";
+    public static void Signature(Graphics g,float x,float y)
+    {
+        if(SignatureImage!=null)
+        {
+            GraphicsState state=g.Save();g.InterpolationMode=InterpolationMode.HighQualityBicubic;
+            g.DrawImage(SignatureImage,new RectangleF(x,y,150,28));g.Restore(state);return;
+        }
+        using(Font font=new Font(SignatureFont,22,FontStyle.Regular,GraphicsUnit.Pixel))
+        using(SolidBrush brush=new SolidBrush(Color.FromArgb(126,148,166)))
+            g.DrawString("designed by nonori",font,brush,x,y,StringFormat.GenericTypographic);
+    }
     public static Color Background=Color.FromArgb(12,17,25), Card=Color.FromArgb(23,31,44), Muted=Color.FromArgb(138,153,175), Text=Color.FromArgb(239,244,251), Cyan=Color.FromArgb(101,231,206);
     public static GraphicsPath Round(RectangleF r,float radius)
     {
@@ -492,11 +513,12 @@ internal sealed class HubForm : Form
         Art.Label(g,"DEVICE HUB",76,34,12,Art.Text,true);Art.Label(g,"外设控制中心",76,54,11,Art.Muted,false);
         Art.Label(g,"工作台",26,146,10,Color.FromArgb(99,118,143),false);
         Art.Label(g,"你的设备，一处直达。",sidebar+30,35,28,Art.Text,true);
-        Art.Label(g,"自动发现外设软件，新安装也能一键直达。",sidebar+31,80,13,Art.Muted,false);
-        Art.Fill(g,new RectangleF(sidebar+30,115,200,35),17,Color.FromArgb(23,46,43));
-        using(SolidBrush dot=new SolidBrush(Art.Cyan))g.FillEllipse(dot,sidebar+44,129,6,6);
+        Art.Signature(g,sidebar+34,73);
+        Art.Label(g,"自动发现外设软件，新安装也能一键直达。",sidebar+31,102,13,Art.Muted,false);
+        Art.Fill(g,new RectangleF(sidebar+30,130,200,30),15,Color.FromArgb(23,46,43));
+        using(SolidBrush dot=new SolidBrush(Art.Cyan))g.FillEllipse(dot,sidebar+44,142,6,6);
         int count=Entries==null?0:Entries.Count(x=>!x.IsSetting&&x.Available);
-        Art.Label(g,count+" 个本机应用 · 5 个系统入口",sidebar+58,123,11,Color.FromArgb(146,215,195),false);
+        Art.Label(g,count+" 个本机应用 · 5 个系统入口",sidebar+58,136,11,Color.FromArgb(146,215,195),false);
         Art.Fill(g,new RectangleF(sidebar+30,178,w-sidebar-60,48),12,Color.FromArgb(23,31,44));
         Art.Stroke(g,new RectangleF(sidebar+30,178,w-sidebar-60,48),12,Color.FromArgb(43,55,72));
         Art.Glyph(g,"search",new RectangleF(sidebar+43,192,19,19),Art.Muted);
