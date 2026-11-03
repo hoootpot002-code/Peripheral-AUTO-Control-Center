@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -15,15 +15,17 @@ using System.Windows.Forms;
 #else
 [assembly: AssemblyTitle("外设AUTO控制中心")]
 #endif
-[assembly: AssemblyDescription("Peripheral companion apps and Windows audio settings launcher")]
-[assembly: AssemblyVersion("2.1.0.0")]
+[assembly: AssemblyDescription("Peripheral apps, Windows audio shortcuts, direct uninstall and official download pages")]
+[assembly: AssemblyVersion("2.2.0.0")]
 [assembly: AssemblyCompany("Nonori")]
 [assembly: AssemblyProduct("Peripheral AUTO Control Center | 外设AUTO控制中心")]
 [assembly: AssemblyCopyright("Copyright © 2026 Nonori")]
 
 internal sealed class Entry
 {
-    public string Id, Name, Detail, Kind, Badge, Glyph, Target, Arguments, AppId, IconPath, WorkingDirectory;
+    public string Id, Name, SourceName, Detail, Kind, Badge, Glyph, Target, Arguments, AppId, IconPath, WorkingDirectory, DownloadUrl, SearchTerms;
+    public RemovalPlan Removal;
+    public bool IsDownload { get { return Kind == "store"; } }
     public string[] Candidates, Shortcuts;
     public Color Accent;
     public Bitmap Image;
@@ -99,7 +101,7 @@ internal static class Catalog
         }
         List<Entry> available=list.Where(x=>x.Available).ToList();
         foreach(Entry e in list.Except(available))if(e.Image!=null)e.Image.Dispose();
-        List<Entry> deduped=Discovery.Deduplicate(available);Discovery.Trace("catalog done: "+deduped.Count);return deduped;
+        List<Entry> deduped=Discovery.Deduplicate(available);AppManagement.Attach(deduped);Discovery.Trace("catalog done: "+deduped.Count);return deduped;
     }
     sealed class Link { public string Name, Target, Arguments, Icon, WorkingDirectory; }
     static Dictionary<string, Link> ReadLinks()
@@ -288,6 +290,7 @@ internal static class Art
             else if(type=="grid") {for(int y=0;y<2;y++)for(int x=0;x<2;x++)Stroke(g,new RectangleF(4+x*14,4+y*14,10,10),2,color);}
             else if(type=="gamepad") {g.DrawArc(p,3,9,26,19,180,180);g.DrawLines(p,new PointF[]{new PointF(3,18),new PointF(4,27),new PointF(10,25),new PointF(12,22),new PointF(20,22),new PointF(23,26),new PointF(28,26),new PointF(29,18)});g.DrawLine(p,8,16,15,16);g.DrawLine(p,11.5f,12.5f,11.5f,19.5f);g.DrawEllipse(p,21,13,1,1);g.DrawEllipse(p,25,17,1,1);}
             else if(type=="arrow") {g.DrawLine(p,6,16,26,16);g.DrawLine(p,20,10,26,16);g.DrawLine(p,20,22,26,16);}
+            else if(type=="download") {g.DrawLine(p,16,3,16,22);g.DrawLines(p,new PointF[]{new PointF(9,15),new PointF(16,22),new PointF(23,15)});g.DrawLines(p,new PointF[]{new PointF(5,23),new PointF(5,29),new PointF(27,29),new PointF(27,23)});}
             else {Stroke(g,new RectangleF(5,5,22,22),5,color);g.DrawLine(p,11,16,21,16);g.DrawLine(p,16,11,16,21);}
         }
         g.Restore(state);
@@ -298,6 +301,9 @@ internal sealed class CardButton : Button
 {
     public Entry Entry;
     public float ScaleFactor;
+    public Button UninstallButton;
+    readonly ToolTip tip=new ToolTip {ShowAlways=true};
+    public event EventHandler UninstallRequested;
     bool hover;
     public CardButton(Entry entry,float scale)
     {
@@ -306,7 +312,17 @@ internal sealed class CardButton : Button
         FlatStyle=FlatStyle.Flat;TabStop=true;
         MouseEnter+=delegate{hover=true;Invalidate();};MouseLeave+=delegate{hover=false;Invalidate();};
         GotFocus+=delegate{Invalidate();};LostFocus+=delegate{Invalidate();};
+        if(!entry.IsSetting&&!entry.IsDownload)
+        {
+            UninstallButton=new Button{Text=Ui.Text("卸载"),AccessibleName=Ui.Text("卸载")+" "+entry.Name,AccessibleDescription=entry.Removal==null?Ui.Text("未找到唯一且可用的卸载程序，暂不支持直接卸载。"):entry.Removal.Name,Enabled=entry.Removal!=null,FlatStyle=FlatStyle.Flat,BackColor=Color.FromArgb(43,51,64),ForeColor=Color.FromArgb(190,199,212),Font=new Font(Ui.FontFamily,11*scale,FontStyle.Regular,GraphicsUnit.Pixel),Cursor=Cursors.Hand,TabStop=true};
+            UninstallButton.FlatAppearance.BorderSize=0;
+            tip.SetToolTip(UninstallButton,entry.Removal==null?Ui.Text("未找到唯一且可用的卸载程序，暂不支持直接卸载。"):Ui.Text(String.IsNullOrEmpty(entry.Removal.PackageFamily)?"启动软件自身的卸载程序。":"为当前 Windows 账户卸载此应用。"));
+            UninstallButton.Click+=delegate{if(UninstallRequested!=null)UninstallRequested(this,EventArgs.Empty);};
+            Controls.Add(UninstallButton);
+        }
     }
+    protected override void OnResize(EventArgs e)
+    {base.OnResize(e);if(UninstallButton!=null)UninstallButton.SetBounds(Width-(int)(104*ScaleFactor),(int)(122*ScaleFactor),(int)(84*ScaleFactor),(int)(25*ScaleFactor));}
     protected override void OnPaint(PaintEventArgs e)
     {
         Graphics g=e.Graphics;g.Clear(Art.Background);g.ScaleTransform(ScaleFactor,ScaleFactor);g.SmoothingMode=SmoothingMode.AntiAlias;
@@ -322,12 +338,25 @@ internal sealed class CardButton : Button
         using(SolidBrush b=new SolidBrush(Art.Text))
         using(StringFormat format=new StringFormat { Trimming=StringTrimming.EllipsisCharacter, FormatFlags=Ui.English?StringFormatFlags.LineLimit:StringFormatFlags.NoWrap })
             g.DrawString(Entry.Name,font,b,new RectangleF(83,41,w-99,Ui.English?43:25),format);
-        Art.Label(g,Entry.Detail,18,90,12,Art.Muted,false);
+        using(Font font=new Font(Ui.FontFamily,12,FontStyle.Regular,GraphicsUnit.Pixel))
+        using(SolidBrush brush=new SolidBrush(Art.Muted))
+        using(StringFormat format=new StringFormat {Trimming=StringTrimming.EllipsisCharacter,FormatFlags=StringFormatFlags.LineLimit})
+            g.DrawString(Entry.Detail,font,brush,new RectangleF(18,89,w-36,30),format);
+        if(Entry.IsDownload)
+        {
+            Art.Label(g,new Uri(Entry.DownloadUrl).Host,18,127,10,Art.Muted,false);
+            using(SolidBrush dot=new SolidBrush(Art.Cyan))g.FillEllipse(dot,20,h-29,5,5);
+            Art.Label(g,"官网来源",32,h-35,10,Art.Muted,false);
+            Art.Label(g,"官网下载",w-(Ui.English?140:81),h-36,11,active?Entry.Accent:Art.Text,false);
+            Art.Glyph(g,"arrow",new RectangleF(w-32,h-35,16,16),Entry.Accent);
+            return;
+        }
         using(SolidBrush dot=new SolidBrush(Entry.Available?Color.FromArgb(107,207,158):Color.FromArgb(104,112,126)))g.FillEllipse(dot,20,h-29,5,5);
         Art.Label(g,Entry.Available?(Entry.IsSetting?"系统设置":"已安装"):"未检测到",32,h-35,10,Art.Muted,false);
         Art.Label(g,Entry.Available?"打开":"检查",w-62,h-36,11,active?Entry.Accent:Color.FromArgb(187,201,219),false);
         Art.Glyph(g,"arrow",new RectangleF(w-32,h-35,16,16),active?Entry.Accent:Art.Muted);
     }
+    protected override void Dispose(bool disposing){if(disposing)tip.Dispose();base.Dispose(disposing);}
 }
 
 internal sealed class NavButton : Button
@@ -359,7 +388,10 @@ internal sealed class HubForm : Form
     [DllImport("user32.dll",CharSet=CharSet.Unicode)] static extern IntPtr SendMessage(IntPtr handle,int message,IntPtr wParam,string lParam);
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr handle,int attribute,ref int value,int size);
     public List<Entry> Entries;
+    public List<Entry> StoreEntries;
     public List<CardButton> Cards=new List<CardButton>();
+    public Func<Entry,bool> ConfirmRemoval;
+    public Func<Entry,RemovalPlan> ResolveRemoval=AppManagement.ResolveCurrent;
     readonly float scale;
     readonly TextBox search;
     readonly Panel viewport;
@@ -375,6 +407,7 @@ internal sealed class HubForm : Form
     public HubForm(Action<ProcessStartInfo> launch)
     {
         dispatch=launch;
+        ConfirmRemoval=delegate(Entry entry){using(UninstallDialog dialog=new UninstallDialog(entry))return dialog.ShowDialog(this)==DialogResult.OK;};
         using(Graphics g=CreateGraphics())scale=g.DpiX/96f;
         AutoScaleMode=AutoScaleMode.None;
         BackColor=Art.Background;ForeColor=Art.Text;
@@ -390,13 +423,13 @@ internal sealed class HubForm : Form
         Controls.Add(search);
         viewport=new Panel { BackColor=Art.Background, AutoScroll=true, AccessibleName=Ui.Text("快捷入口列表") };
         Controls.Add(viewport);
-        string[] captions={"全部入口","外设驱动","Windows 声音","更多工具"};
-        string[] icons={"grid","gamepad","headphone","app"};
-        string[] categories={"all","peripheral","sound","tools"};
+        string[] captions={"全部入口","外设驱动","Windows 声音","更多工具","官网驱动商店"};
+        string[] icons={"grid","gamepad","headphone","app","download"};
+        string[] categories={"all","peripheral","sound","tools","store"};
         for(int i=0;i<captions.Length;i++)
         {
             NavButton nav=new NavButton(captions[i],icons[i],scale);nav.Selected=i==0;nav.Tag=categories[i];
-            nav.Click+=delegate(object sender,EventArgs args){category=(string)((Control)sender).Tag;foreach(NavButton n in navs){n.Selected=(string)n.Tag==category;n.Invalidate();}RenderCards();Invalidate();};
+            nav.Click+=delegate(object sender,EventArgs args){Filter(search.Text,(string)((Control)sender).Tag);};
             navs.Add(nav);Controls.Add(nav);
         }
         refresh=new NavButton("刷新应用","refresh",scale);
@@ -416,6 +449,7 @@ internal sealed class HubForm : Form
         noticeTimer.Interval=4500;noticeTimer.Tick+=delegate{noticeTimer.Stop();notice=DefaultNotice;Invalidate();};
         scanTimer.Interval=60000;scanTimer.Tick+=delegate{Scan(false);};scanTimer.Start();
         Entries=Catalog.Load();
+        StoreEntries=DriverStore.Load(Entries);
         Resize+=delegate{Arrange();};
         Arrange();
     }
@@ -432,10 +466,10 @@ internal sealed class HubForm : Form
         RenderCards();Invalidate();
     }
     public void Filter(string query,string kind)
-    {category=kind;foreach(NavButton nav in navs){nav.Selected=(string)nav.Tag==kind;nav.Invalidate();}search.Text=query;RenderCards();}
+    {category=kind;foreach(NavButton nav in navs){nav.Selected=(string)nav.Tag==kind;nav.Invalidate();}search.Text=query;if(search.IsHandleCreated)SendMessage(search.Handle,0x1501,new IntPtr(1),Ui.Text(kind=="store"?"搜索品牌或驱动软件…":"搜索品牌、软件或设置…"));RenderCards();}
     public void ResetNotice(){noticeTimer.Stop();notice=DefaultNotice;Invalidate();}
     static string Signature(List<Entry> entries)
-    {return String.Join("\n",entries.Select(x=>Discovery.Key(x)+"|"+x.Name+"|"+x.IconPath).OrderBy(x=>x));}
+    {return String.Join("\n",entries.Select(x=>Discovery.Key(x)+"|"+x.Name+"|"+x.IconPath+"|"+(x.Removal==null?"":x.Removal.Identity)).OrderBy(x=>x));}
     public bool IsScanning {get{return scanning;}}
     public string ScanError;
     public void Scan(bool requested)
@@ -462,6 +496,7 @@ internal sealed class HubForm : Form
                     if(changed||requested)
                     {
                         Point scroll=viewport.AutoScrollPosition;
+                        DisposeEntries(StoreEntries);StoreEntries=DriverStore.Load(fresh);
                         Entries=fresh;RenderCards();
                         viewport.AutoScrollPosition=new Point(-scroll.X,-scroll.Y);
                         DisposeEntries(old);
@@ -481,7 +516,8 @@ internal sealed class HubForm : Form
         viewport.SuspendLayout();
         foreach(CardButton card in Cards){viewport.Controls.Remove(card);card.Dispose();}Cards.Clear();
         string query=search.Text.Trim();
-        List<Entry> visible=Entries.Where(delegate(Entry e){return(category=="all"||e.Kind==category)&&(query.Length==0||(e.Name+" "+e.Detail+" "+e.Badge).IndexOf(query,StringComparison.OrdinalIgnoreCase)>=0);}).ToList();
+        List<Entry> source=category=="store"?StoreEntries:Entries;
+        List<Entry> visible=source.Where(delegate(Entry e){return(category=="all"||e.Kind==category)&&(query.Length==0||(e.Name+" "+e.Detail+" "+e.Badge+" "+e.SearchTerms).IndexOf(query,StringComparison.OrdinalIgnoreCase)>=0);}).ToList();
         viewport.AutoScrollPosition=Point.Empty;
         float width=viewport.ClientSize.Width/scale-20;
         int cols=width>=800?3:2;
@@ -489,18 +525,43 @@ internal sealed class HubForm : Form
         for(int i=0;i<visible.Count;i++)
         {
             CardButton card=new CardButton(visible[i],scale);
-            card.SetBounds(S((i%cols)*(cardWidth+gap)),S((i/cols)*174),S(cardWidth),S(160));
+            card.SetBounds(S((i%cols)*(cardWidth+gap)),S((i/cols)*208),S(cardWidth),S(194));
             card.Click+=delegate(object sender,EventArgs args){Open(((CardButton)sender).Entry);};
+            card.UninstallRequested+=delegate(object sender,EventArgs args){Uninstall(((CardButton)sender).Entry);};
             Cards.Add(card);viewport.Controls.Add(card);
         }
-        viewport.AutoScrollMinSize=new Size(0,S(((visible.Count+cols-1)/cols)*174));
+        viewport.AutoScrollMinSize=new Size(0,S(((visible.Count+cols-1)/cols)*208));
         viewport.ResumeLayout();Invalidate();
     }
     void Open(Entry entry)
     {
+        if(entry.IsDownload)
+        {
+            try{dispatch(DriverStore.Command(entry));notice="已打开官网，请按设备型号选择下载。";noticeTimer.Start();Invalidate();}
+            catch(Exception ex){MessageBox.Show(this,ex.Message,Ui.Text("打开失败"),MessageBoxButtons.OK,MessageBoxIcon.Warning);}
+            return;
+        }
         if(!entry.Available){MessageBox.Show(this,Ui.Text("没有找到此应用。请确认它仍已安装，然后点击左下角“刷新应用”。"),entry.Name,MessageBoxButtons.OK,MessageBoxIcon.Information);return;}
         try {dispatch(entry.Command());notice="已发送打开请求："+entry.Name;noticeTimer.Start();Invalidate();}
         catch(Exception ex){MessageBox.Show(this,Ui.Text("无法打开“"+entry.Name+"”。\n\n"+ex.Message),Ui.Text("打开失败"),MessageBoxButtons.OK,MessageBoxIcon.Warning);}
+    }
+    public void Uninstall(Entry entry)
+    {
+        if(entry.IsSetting||entry.IsDownload)return;
+        try
+        {
+            RemovalPlan current=ResolveRemoval(entry);
+            if(current==null){MessageBox.Show(this,Ui.Text("未找到唯一且可用的卸载程序，暂不支持直接卸载。"),entry.Name,MessageBoxButtons.OK,MessageBoxIcon.Information);return;}
+            entry.Removal=current;
+            if(!ConfirmRemoval(entry))return;
+            dispatch(current.Command());notice="卸载流程已启动，请按提示完成；随后可刷新列表。";noticeTimer.Start();Invalidate();
+        }
+        catch(System.ComponentModel.Win32Exception ex)
+        {
+            if(ex.NativeErrorCode==1223){notice="已取消卸载授权，软件未由本工具卸载。";noticeTimer.Start();Invalidate();}
+            else MessageBox.Show(this,ex.Message,Ui.Text("卸载未启动"),MessageBoxButtons.OK,MessageBoxIcon.Warning);
+        }
+        catch(Exception ex){MessageBox.Show(this,ex.Message,Ui.Text("卸载未启动"),MessageBoxButtons.OK,MessageBoxIcon.Warning);}
     }
     protected override void OnPaint(PaintEventArgs e)
     {
@@ -512,26 +573,26 @@ internal sealed class HubForm : Form
         Art.Glyph(g,"grid",new RectangleF(33,40,22,22),Art.Cyan);
         Art.Label(g,"DEVICE HUB",76,34,12,Art.Text,true);Art.Label(g,"外设控制中心",76,54,11,Art.Muted,false);
         Art.Label(g,"工作台",26,146,10,Color.FromArgb(99,118,143),false);
-        Art.Label(g,"你的设备，一处直达。",sidebar+30,35,28,Art.Text,true);
+        Art.Label(g,category=="store"?"官网下载，清楚直达。":"你的设备，一处直达。",sidebar+30,35,28,Art.Text,true);
         Art.Signature(g,sidebar+34,73);
-        Art.Label(g,"自动发现外设软件，新安装也能一键直达。",sidebar+31,102,13,Art.Muted,false);
+        Art.Label(g,category=="store"?"搜索已收录的软件，前往品牌官网选择下载。":"自动发现外设软件，新安装也能一键直达。",sidebar+31,102,13,Art.Muted,false);
         Art.Fill(g,new RectangleF(sidebar+30,130,200,30),15,Color.FromArgb(23,46,43));
         using(SolidBrush dot=new SolidBrush(Art.Cyan))g.FillEllipse(dot,sidebar+44,142,6,6);
         int count=Entries==null?0:Entries.Count(x=>!x.IsSetting&&x.Available);
-        Art.Label(g,count+" 个本机应用 · 5 个系统入口",sidebar+58,136,11,Color.FromArgb(146,215,195),false);
+        Art.Label(g,category=="store"?(Ui.English?StoreEntries.Count+" official download pages":StoreEntries.Count+" 个官网下载入口"):count+" 个本机应用 · 5 个系统入口",sidebar+58,136,11,Color.FromArgb(146,215,195),false);
         Art.Fill(g,new RectangleF(sidebar+30,178,w-sidebar-60,48),12,Color.FromArgb(23,31,44));
         Art.Stroke(g,new RectangleF(sidebar+30,178,w-sidebar-60,48),12,Color.FromArgb(43,55,72));
         Art.Glyph(g,"search",new RectangleF(sidebar+43,192,19,19),Art.Muted);
-        string heading=category=="peripheral"?"外设驱动":category=="sound"?"Windows 声音":category=="tools"?"更多工具":"全部入口";
+        string heading=category=="store"?"官网驱动商店":category=="peripheral"?"外设驱动":category=="sound"?"Windows 声音":category=="tools"?"更多工具":"全部入口";
         Art.Label(g,heading,sidebar+30,242,13,Art.Text,true);
         Art.Label(g,Cards.Count+" 项",w-72,243,11,Art.Muted,false);
         if(Cards.Count==0){Art.Label(g,"没有找到匹配的入口",sidebar+80,335,20,Art.Text,true);Art.Label(g,"试试品牌名称，或清空搜索。",sidebar+80,372,13,Art.Muted,false);}
         using(Pen line=new Pen(Color.FromArgb(30,41,57)))g.DrawLine(line,sidebar+30,h-41,w-30,h-41);
-        Art.Label(g,notice,sidebar+31,h-28,11,Art.Muted,false);
+        Art.Label(g,category=="store"&&notice==DefaultNotice?"只打开官网页面，由你选择下载和安装。":notice,sidebar+31,h-28,11,Art.Muted,false);
         Art.Label(g,"本机快捷面板",24,h-52,11,Art.Text,false);Art.Label(g,"PERIPHERALS & AUDIO",24,h-31,8,Color.FromArgb(89,109,135),false);
     }
     static void DisposeEntries(List<Entry> entries){if(entries!=null)foreach(Entry e in entries)if(e.Image!=null)e.Image.Dispose();}
-    protected override void Dispose(bool disposing){if(disposing){scanTimer.Dispose();noticeTimer.Dispose();DisposeEntries(Entries);}base.Dispose(disposing);}
+    protected override void Dispose(bool disposing){if(disposing){scanTimer.Dispose();noticeTimer.Dispose();DisposeEntries(StoreEntries);DisposeEntries(Entries);}base.Dispose(disposing);}
 }
 
 internal static class Program
@@ -551,9 +612,11 @@ internal static class Program
             Directory.CreateDirectory(folder);
             Discovery.TraceFile=Path.Combine(folder,"scan-trace.txt");
             Discovery.Verify(folder);
+            AppManagement.Verify();DriverStore.Verify();
             List<ProcessStartInfo> commands=new List<ProcessStartInfo>();
+            bool simulateUacCancel=false;
             StringBuilder report=new StringBuilder();
-            using(HubForm form=new HubForm(commands.Add))
+            using(HubForm form=new HubForm(delegate(ProcessStartInfo info){if(simulateUacCancel)throw new System.ComponentModel.Win32Exception(1223);commands.Add(info);}))
             {
                 form.Show();Application.DoEvents();
                 if(Ui.English)
@@ -578,6 +641,47 @@ internal static class Program
                 }
                 if(commands.Single(x=>x.FileName=="ms-settings:sound-defaultinputproperties")==null)throw new Exception("Microphone route missing.");
                 if(commands.Single(x=>x.FileName=="ms-settings:sound-defaultoutputproperties")==null)throw new Exception("Headphone route missing.");
+                report.AppendLine("\nUNINSTALL REGISTRATIONS (read only; no uninstaller executed)");
+                foreach(Entry entry in form.Entries.Where(x=>!x.IsSetting))
+                    report.AppendLine(entry.Name+" | "+(entry.Removal==null?"unavailable":entry.Removal.Name+" | "+(String.IsNullOrEmpty(entry.Removal.PackageFamily)?entry.Removal.FileName+" "+entry.Removal.Arguments:"current-user package: "+entry.Removal.PackageFamily)));
+                foreach(CardButton card in form.Cards)
+                {
+                    if(card.Entry.IsSetting&&card.UninstallButton!=null)throw new Exception("Settings card has uninstall button.");
+                    if(!card.Entry.IsSetting&&(card.UninstallButton==null||card.UninstallButton.Enabled!=(card.Entry.Removal!=null)))throw new Exception("Uninstall enabled state incorrect.");
+                }
+                CardButton removable=form.Cards.First(x=>x.Entry.Removal!=null&&String.IsNullOrEmpty(x.Entry.AppId));
+                int uninstallCalls=commands.Count,confirmCalls=0;
+                form.ConfirmRemoval=delegate{confirmCalls++;return false;};
+                removable.UninstallButton.PerformClick();
+                if(commands.Count!=uninstallCalls||confirmCalls!=1)throw new Exception("Cancelled uninstall dispatched a process.");
+                form.ConfirmRemoval=delegate{return true;};
+                removable.UninstallButton.PerformClick();
+                if(commands.Count!=uninstallCalls+1||commands.Last().FileName!=removable.Entry.Removal.FileName||commands.Last().Arguments!=removable.Entry.Removal.Arguments)throw new Exception("Uninstall button did not route the registered remover.");
+                if(commands.Last().Verb!="runas")throw new Exception("Machine-wide uninstaller did not request elevation.");
+                int beforeUacCancel=commands.Count;simulateUacCancel=true;removable.UninstallButton.PerformClick();simulateUacCancel=false;
+                if(commands.Count!=beforeUacCancel)throw new Exception("Cancelled UAC launched removal.");
+                if(form.Cards.All(x=>x.Entry.Id!=removable.Entry.Id))throw new Exception("App card removed before uninstall completed.");
+                Entry packaged=form.Entries.First(x=>!String.IsNullOrEmpty(x.AppId));
+                int packageCalls=commands.Count;form.Uninstall(packaged);
+                if(commands.Count!=packageCalls+1||!commands.Last().Arguments.Contains("-EncodedCommand"))throw new Exception("Store app current-user removal route missing.");
+                if(commands.Last().Verb=="runas")throw new Exception("Current-user package removal requested system-wide elevation.");
+                string encoded=commands.Last().Arguments.Split(new[]{"-EncodedCommand "},StringSplitOptions.None)[1];
+                string packageScript=Encoding.Unicode.GetString(Convert.FromBase64String(encoded));
+                if(packageScript.Contains("-AllUsers")||packageScript.Contains("Remove-AppxProvisionedPackage")||!packageScript.Contains("PackageFamilyName -eq '"+packaged.Removal.PackageFamily+"'"))throw new Exception("Package removal scope is incorrect.");
+                File.WriteAllText(Path.Combine(folder,"package-removal-script.txt"),packageScript,Encoding.UTF8);
+                int forbiddenCalls=commands.Count;form.Uninstall(form.Entries.First(x=>x.IsSetting));
+                if(commands.Count!=forbiddenCalls)throw new Exception("Settings page could be uninstalled.");
+                form.Filter("","store");form.ResetNotice();Application.DoEvents();
+                if(form.Cards.Count!=8||form.Cards.Any(x=>!x.Entry.IsDownload||x.UninstallButton!=null))throw new Exception("Driver store category incorrect.");
+                foreach(CardButton card in form.Cards)
+                {
+                    int before=commands.Count;card.PerformClick();
+                    if(commands.Count!=before+1||commands.Last().FileName!=card.Entry.DownloadUrl||!commands.Last().UseShellExecute)throw new Exception("Official page click did not dispatch URL.");
+                }
+                form.ResetNotice();Save(form,Path.Combine(folder,"PeripheralHub-store.png"));
+                form.Filter("罗技","store");if(form.Cards.Count!=1||form.Cards[0].Entry.Id!="store-logitech")throw new Exception("Bilingual store keyword search failed.");
+                form.Filter("unlikely-product-zz","store");if(form.Cards.Count!=0)throw new Exception("Store empty search failed.");
+                form.Filter("","all");
                 form.Filter(Ui.English?"Razer":"雷蛇","all");if(!form.Cards.Any(x=>x.Entry.Id=="razer"))throw new Exception("Search failed.");
                 form.Filter("","sound");if(form.Cards.Count!=5)throw new Exception("Sound filter failed.");
                 form.Filter("没有这个品牌","all");if(form.Cards.Count!=0)throw new Exception("Empty search failed.");
@@ -605,9 +709,20 @@ internal static class Program
                 if(form.Cards.Count<3||form.Cards[2].Top<=form.Cards[0].Top)throw new Exception("Compact window should use two columns.");
                 if(form.Cards[1].Right>form.Cards[1].Parent.ClientSize.Width)throw new Exception("Card exceeds viewport.");
                 Save(form,Path.Combine(folder,"PeripheralHub-compact.png"));
+                form.Filter("","store");Application.DoEvents();Save(form,Path.Combine(folder,"PeripheralHub-store-compact.png"));
+                NavButton storeNav=form.Controls.OfType<NavButton>().Single(x=>(string)x.Tag=="store");
+                NavButton addNav=form.Controls.OfType<NavButton>().Single(x=>x.Text==Ui.Text("添加软件"));
+                if(storeNav.Bottom>addNav.Top)throw new Exception("Sidebar buttons overlap in compact mode.");
+                form.ClientSize=new Size(1120,820);form.Filter("","all");Application.DoEvents();
+                Entry confirmEntry=form.Entries.First(x=>x.Id=="logitech");
+                using(UninstallDialog dialog=new UninstallDialog(confirmEntry))
+                {
+                    dialog.Show(form);Application.DoEvents();Save(dialog,Path.Combine(folder,"PeripheralHub-uninstall-confirm.png"));dialog.Close();
+                }
                 form.Close();
             }
             report.AppendLine("PASS: installation of an unknown-brand app was simulated with an isolated real shortcut; periodic scan added its entry and icon; click preserved arguments; repeated scan did not duplicate; removing the source removed the entry. Custom entry persistence, service/installer filtering, existing apps, search, filters and compact layout also passed. No external apps were launched.");
+            report.AppendLine("PASS: uninstall parsing, exact/ambiguous mapping, confirmation cancellation and registered dispatch, current-user package routing, no premature card removal; eight official HTTPS pages, bilingual store search and compact layouts. All commands captured by fake dispatcher; no real uninstall or download executed.");
             File.WriteAllText(Path.Combine(folder,"verification.txt"),report.ToString(),Encoding.UTF8);
             return 0;
         }
@@ -622,3 +737,4 @@ internal static class Program
         if(form.IsScanning||form.ScanError!=null)throw new Exception("Scan failed: "+form.ScanError);
     }
 }
+

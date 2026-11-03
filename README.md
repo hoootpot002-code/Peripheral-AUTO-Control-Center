@@ -1,19 +1,19 @@
 # Peripheral AUTO Control Center | 外设AUTO控制中心
 
-**By Nonori · Windows desktop utility · v2.1.0 · English & 简体中文**
+**By Nonori · Windows desktop utility · v2.2.0 · English & 简体中文**
 
 Your peripheral apps and Windows audio settings, together in one launcher. Spend less time searching the Start Menu and more time getting your setup ready to play.
 
 把外设管理软件、耳机和麦克风设置集中到一个窗口。中英文版本功能一致，选择你习惯的界面即可。
 
-**[Download / 下载](https://github.com/hoootpot002-code/Peripheral-AUTO-Control-Center/releases/latest)** · **[中文使用指南](README.zh-CN.md)** · **[Report a problem / 反馈问题](https://github.com/hoootpot002-code/Peripheral-AUTO-Control-Center/issues)**
+**[中文使用指南](README.zh-CN.md)** · **[Release notes / 更新说明](RELEASE-v2.2.0.md)** · **[Report a problem / 反馈问题](https://github.com/hoootpot002-code/Peripheral-AUTO-Control-Center/issues)**
 
 ## Choose your edition | 选择版本
 
 | Download | Interface | Best for |
 | --- | --- | --- |
-| [English EXE](https://github.com/hoootpot002-code/Peripheral-AUTO-Control-Center/releases/latest/download/Peripheral-AUTO-Control-Center-EN.exe) | English | Players who prefer an English interface |
-| [中文版 EXE](https://github.com/hoootpot002-code/Peripheral-AUTO-Control-Center/releases/latest/download/Peripheral-AUTO-Control-Center-ZH-CN.exe) | 简体中文 | 习惯中文界面的玩家 |
+| [English EXE](https://github.com/hoootpot002-code/Peripheral-AUTO-Control-Center/releases/download/v2.2.0/Peripheral-AUTO-Control-Center-EN.exe) | English | Players who prefer an English interface |
+| [中文版 EXE](https://github.com/hoootpot002-code/Peripheral-AUTO-Control-Center/releases/download/v2.2.0/Peripheral-AUTO-Control-Center-ZH-CN.exe) | 简体中文 | 习惯中文界面的玩家 |
 
 **Just download one EXE and double-click it. No installer required.** Both editions have the same features and share your manually added shortcuts on the same Windows account. Switching language means opening the other EXE; there is no in-app language switch.
 
@@ -61,6 +61,28 @@ The launcher opens the appropriate app or settings page. You make the actual cha
 - **Manual additions:** adds apps that automatic detection misses and saves them for your next launch.
 - **Search and categories:** finds apps by name or brand and separates peripheral apps, Windows audio, and other tools.
 - **English and Chinese builds:** localized controls, app descriptions, prompts, and application messages.
+- **Direct uninstall:** the small gray Uninstall button above Open asks for confirmation, then starts the registered vendor uninstaller. Windows app packages are removed for the current account through Windows package management.
+- **Driver Store:** a separate sidebar page searches eight curated official download pages. Each card shows the manufacturer domain and opens that page in your default browser.
+
+## Uninstall apps | 直接卸载
+
+Click **Uninstall / 卸载**, check the software name, and confirm. This actually uninstalls software. It does not simply hide a shortcut. Vendor uninstallers may ask for administrator approval, offer component choices, or request a restart. Cancelling our confirmation starts nothing.
+
+Uninstall is disabled when no unique, usable registered command can be matched. Windows settings cards have no uninstall action. The launcher never deletes program folders or driver files itself. For Windows app packages, removal applies only to the current user; related vendor services and other separately installed components may remain.
+
+The card remains until a refresh can no longer find the app. Complete the vendor wizard, then click **Refresh Apps**, or wait for the 60-second scan while the launcher is open. An interrupted uninstall or a leftover launchable app can keep an entry visible; the tool does not claim removal succeeded merely because it started a process.
+
+小灰框会启动实际卸载流程。无法可靠匹配卸载信息时不可用；系统设置卡片不会显示卸载按钮。卸载完成后刷新列表，软件不会在点击后立刻被当作已卸载。
+
+## Official Driver Store | 官网驱动商店
+
+![Driver Store](preview-store-en.png)
+
+Search by brand or software name, including common Chinese and English keywords. This searches the included directory, not the entire web. The initial catalog contains Flydigi Space Station, Razer Synapse 4, Logitech G HUB, MCHOSE M HUB, SteelSeries GG, Armoury Crate, Aura Creator, and NVIDIA App. Armoury Crate and Aura Creator share the ASUS installer page.
+
+**Official website / 官网下载** opens a manufacturer page; you select the package for your model and download it in the browser. The launcher does not download, install, or update software in the background. Browsing the catalog does not need administrator permission; installing or uninstalling software may need it. Publisher pages may change later. The recorded source URLs and check date are in [OFFICIAL-SOURCES.md](OFFICIAL-SOURCES.md).
+
+官网商店提供已核实的品牌页面入口，不代替你选择驱动型号。新装软件仍由现有自动扫描机制发现。
 
 ### Windows audio shortcuts
 
@@ -91,7 +113,7 @@ The launcher opens the appropriate app or settings page. You make the actual cha
 
 **The wrong audio device opens.** The headphones and microphone cards follow the Windows default devices. Use Sound & Devices to select or manage another device.
 
-**Does it change my drivers or gaming performance?** It provides shortcuts. It does not update drivers, flash firmware, adjust settings automatically, or promise FPS improvements.
+**Does it change my drivers or gaming performance?** It opens app/settings pages, starts an uninstaller only after your confirmation, and links to official download pages. It does not update drivers, flash firmware, adjust settings automatically, or promise FPS improvements. A vendor uninstaller may remove components belonging to the app you choose to uninstall.
 
 **Can I use both languages?** Yes. Each has the same features and reads the same saved custom-app list. Windows file dialogs and system messages may still follow your Windows language.
 
@@ -126,6 +148,8 @@ Outputs are written to `dist/`. The script uses the Windows .NET Framework C# co
 | `PeripheralHub.cs` | Interface, launch actions, and Windows settings shortcuts |
 | `PeripheralDiscovery.cs` | App discovery, filtering, deduplication, and custom entries |
 | `UiLocalization.cs` | English translations and language-specific labels |
+| `AppManagement.cs` | Uninstall registrations, matching, confirmation, and current-user package removal |
+| `DriverStore.cs` | Curated manufacturer pages and strict HTTPS/domain validation |
 | `PeripheralHub.manifest` / `PeripheralHub.ico` | Windows manifest and application icon |
 | `Nonori.Signature.png` | Embedded calligraphic signature, consistent across PCs |
 | `build.ps1` | Build one or both editions |
@@ -134,6 +158,9 @@ Outputs are written to `dist/`. The script uses the Windows .NET Framework C# co
 
 Both editions passed checks for simulated installation of an unknown-brand app through a real shortcut, icon loading, launch-argument preservation, repeated scans, missing-entry removal, custom-entry persistence, search, filtering, and compact layouts. English labels and both interface layouts were also checked. Automated checks did not launch external vendor apps and do not establish compatibility with every peripheral.
 
+v2.2.0 also checks uninstall-command parsing, ambiguous-match rejection, cancelled confirmation and cancelled elevation, registered command routing, current-user package scope, eight official-page routes, and store search. A fake process dispatcher captures commands: no real installed app was uninstalled, and no installer was downloaded or run. Vendor uninstall completion still needs real-world validation when the user chooses to uninstall an app.
+
 Brand names and icons belong to their respective owners. This project is independent and is not affiliated with device manufacturers.
 
 **Creator / 发布者: Nonori**
+

@@ -23,7 +23,9 @@ foreach ($edition in $editions) {
         ('/out:' + (Join-Path $destination $fileName)),
         (Join-Path $PSScriptRoot 'PeripheralHub.cs'),
         (Join-Path $PSScriptRoot 'PeripheralDiscovery.cs'),
-        (Join-Path $PSScriptRoot 'UiLocalization.cs')
+        (Join-Path $PSScriptRoot 'UiLocalization.cs'),
+        (Join-Path $PSScriptRoot 'AppManagement.cs'),
+        (Join-Path $PSScriptRoot 'DriverStore.cs')
     )
     if ($edition -eq 'en-US') { $compilerArguments += '/define:ENGLISH' }
     & $compiler @compilerArguments

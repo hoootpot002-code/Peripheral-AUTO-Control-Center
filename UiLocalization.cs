@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
@@ -13,6 +13,23 @@ internal static class Ui
 #endif
     static readonly Dictionary<string,string> Strings=new Dictionary<string,string>
     {
+        {"官网驱动商店","Driver Store"},
+        {"官网下载，清楚直达。","Official downloads. One place."},
+        {"搜索已收录的软件，前往品牌官网选择下载。","Search the catalog and visit the manufacturer's download page."},
+        {"只打开官网页面，由你选择下载和安装。","Opens official pages. You choose what to download and install."},
+        {"搜索品牌或驱动软件…","Search brands or driver software..."},
+        {"官网下载","Official website"},
+        {"官网来源","Official source"},
+        {"卸载","Uninstall"},
+        {"卸载软件","Uninstall app"},
+        {"卸载未启动","Could not start uninstall"},
+        {"未找到唯一且可用的卸载程序，暂不支持直接卸载。","No unique, usable uninstaller was found. Direct uninstall is unavailable."},
+        {"启动软件自身的卸载程序。","Start this application's own uninstaller."},
+        {"为当前 Windows 账户卸载此应用。","Remove this app for the current Windows account."},
+        {"卸载流程已启动，请按提示完成；随后可刷新列表。","Uninstall started. Follow its prompts, then refresh the list."},
+        {"已取消卸载授权，软件未由本工具卸载。","Administrator approval was cancelled. Uninstall was not started."},
+        {"已打开官网，请按设备型号选择下载。","Official page opened. Choose the download for your device."},
+        {"返回上次分类时保留搜索内容。","Your search is retained when switching categories."},
         {"外设AUTO控制中心","Peripheral AUTO Control Center"},
         {"外设控制中心","by Nonori"},
         {"飞智空间站 4.0","Flydigi Space Station 4.0"},
@@ -94,6 +111,8 @@ internal static class Ui
     }
     public static void Localize(Entry entry)
     {
+        if(entry.SourceName==null)entry.SourceName=entry.Name;
         entry.Name=Text(entry.Name);entry.Detail=Text(entry.Detail);entry.Badge=Text(entry.Badge);
     }
 }
+

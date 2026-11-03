@@ -1,8 +1,8 @@
 # 外设AUTO控制中心 | Peripheral AUTO Control Center
 
-**发布者：Nonori · v2.1.0 · 中文 / English**
+**发布者：Nonori · v2.2.0 · 中文 / English**
 
-[English overview](README.md) · [下载最新版本](https://github.com/hoootpot002-code/Peripheral-AUTO-Control-Center/releases/latest) · [反馈问题](https://github.com/hoootpot002-code/Peripheral-AUTO-Control-Center/issues)
+[English overview](README.md) · [更新说明](RELEASE-v2.2.0.md) · [反馈问题](https://github.com/hoootpot002-code/Peripheral-AUTO-Control-Center/issues)
 
 一个面向普通玩家的 Windows 外设快捷面板：把手柄、鼠标、键盘、耳机等设备的管理软件，以及 Windows 声音设置，集中到同一个窗口。
 
@@ -10,8 +10,8 @@
 
 | 文件 | 界面语言 |
 | --- | --- |
-| [Peripheral-AUTO-Control-Center-ZH-CN.exe](https://github.com/hoootpot002-code/Peripheral-AUTO-Control-Center/releases/latest/download/Peripheral-AUTO-Control-Center-ZH-CN.exe) | 简体中文 |
-| [Peripheral-AUTO-Control-Center-EN.exe](https://github.com/hoootpot002-code/Peripheral-AUTO-Control-Center/releases/latest/download/Peripheral-AUTO-Control-Center-EN.exe) | English |
+| [Peripheral-AUTO-Control-Center-ZH-CN.exe](https://github.com/hoootpot002-code/Peripheral-AUTO-Control-Center/releases/download/v2.2.0/Peripheral-AUTO-Control-Center-ZH-CN.exe) | 简体中文 |
+| [Peripheral-AUTO-Control-Center-EN.exe](https://github.com/hoootpot002-code/Peripheral-AUTO-Control-Center/releases/download/v2.2.0/Peripheral-AUTO-Control-Center-EN.exe) | English |
 
 选择一个 EXE 下载后双击即可，无需安装本工具。两个版本功能一致，共用当前 Windows 账户的手动添加记录。需要换语言时，打开另一份 EXE 即可；软件内没有语言切换按钮。
 
@@ -33,6 +33,32 @@
 - 支持品牌 / 名称搜索和分类浏览。
 - 可手动添加漏识别的软件，后续启动继续保留。
 - 提供耳机 / 扬声器、麦克风、声音设备、应用音量混合器和麦克风权限入口。
+- 软件卡片“打开”上方新增灰色“卸载”按钮，确认后启动实际卸载流程。
+- 侧边栏新增“官网驱动商店”，支持在已收录目录中搜索品牌与软件，直接进入官网下载页。
+
+## 直接卸载怎么用？
+
+点击软件卡片中的灰色“卸载”按钮，核对软件名称，再点击确认。普通桌面软件会启动它在 Windows 中登记的卸载程序，可能弹出管理员授权、组件选择或重启提示；在确认框点击取消，不会启动卸载。
+
+商店应用通过 Windows 应用包管理为当前账户卸载。此操作不等同于删除同厂商所有组件，厂商服务、其他账户安装的应用或单独安装的驱动可能继续保留。
+
+找不到唯一且可用的卸载信息时，按钮不可用；Windows 声音设置等卡片不显示卸载按钮。本工具不会自行删除程序文件夹或底层驱动文件。
+
+完成卸载向导后，点击“刷新应用”，或保持窗口打开等待下一次自动扫描。只有扫描不再找到该软件时，入口才会消失；卸载未完成或仍存在可启动残留时，卡片可能保留。
+
+## 官网驱动商店怎么用？
+
+![官网驱动商店](preview-store.png)
+
+进入左侧“官网驱动商店”，搜索品牌或软件名称，点击“官网下载”即可在默认浏览器打开对应品牌页面。卡片同时展示官网域名，下载时请根据设备型号选择。
+
+初始收录 8 项：飞智空间站、Razer Synapse 4、罗技 G HUB、MCHOSE M HUB、SteelSeries GG、Armoury Crate、Aura Creator 和 NVIDIA App。其中 Armoury Crate 与 Aura Creator 共用华硕安装程序页面。
+
+搜索范围是已收录目录，不是全网搜索。工具不会在后台下载或自动安装。查看目录和打开网页通常无需管理员权限，安装和卸载可能需要。官网链接核查记录见 [OFFICIAL-SOURCES.md](OFFICIAL-SOURCES.md)。
+
+## 本次检查
+
+中英文版本均检查了按钮调用、取消卸载、取消管理员授权、卸载命令匹配、商店页面跳转、搜索、紧凑窗口布局，以及原有自动发现和声音入口。测试使用模拟调用，没有实际卸载电脑上的任何软件，也没有下载安装包；各厂商卸载向导的最终完成情况仍需在用户实际选择卸载时验证。
 
 ## 运行要求与识别范围
 
@@ -75,3 +101,4 @@
 项目源码与构建方法见 [English overview](README.md#build-from-source)。品牌图标及名称属于各自权利人，本项目与相关厂商无隶属关系。
 
 **Nonori**
+
